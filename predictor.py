@@ -1,6 +1,5 @@
 import pathlib
 import pickle
-from collections import Counter
 
 import yfinance as yf
 from sklearn.metrics import accuracy_score
@@ -9,6 +8,7 @@ from sklearn.model_selection import (
     TimeSeriesSplit,
     train_test_split,
 )
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
 
@@ -26,16 +26,25 @@ def create_features(df, target_col="Close"):
         df[f"vol_mean_{w}"] = df["Volume"].rolling(w).mean()
         df[f"vol_std_{w}"] = df["Volume"].rolling(w).std()
 
+    df["OC_diff"] = df["Close"] - df["Open"]
+    df["HL_range"] = df["High"] - df["Low"]
+
     for lag in range(1, 6):
         df[f"{target_col}_lag_{lag}"] = df[target_col].shift(lag)
 
-    df = df.dropna()
-    return df
+    df["EMA12"] = df[target_col].ewm(span=12, adjust=False).mean()
+    df["EMA26"] = df[target_col].ewm(span=26, adjust=False).mean()
+    df["MACD"] = df["EMA12"] - df["EMA26"]
+    df["MACD_signal"] = df["MACD"].ewm(span=9, adjust=False).mean()
+
+    return df.dropna()
 
 
-def create_labels(df, target_col="Close"):
+def create_labels(df, target_col="Close", threshold=0.001):
     df = df.copy()
-    df["target"] = (df[target_col].shift(-1) > df[target_col]).astype(int)
+    df["target"] = (
+        (df[target_col].shift(-1) - df[target_col]) / df[target_col] > threshold
+    ).astype(int)
     return df.dropna()
 
 
@@ -53,26 +62,37 @@ def split_data(df):
 
 
 def train_model(x_train, y_train):
-    counter = Counter(y_train)
-    scale_pos_weight = counter[0] / counter[1]
-    model = XGBClassifier(
-        objective="binary:logistic",
-        eval_metric="logloss",
-        tree_method="hist",
-        scale_pos_weight=scale_pos_weight,
-        n_jobs=-1,
-        random_state=42,
+    pipeline = Pipeline(
+        [
+            ("scaler", StandardScaler()),
+            (
+                "xgb",
+                XGBClassifier(
+                    objective="binary:logistic",
+                    eval_metric="logloss",
+                    tree_method="hist",
+                    n_jobs=-1,
+                    random_state=42,
+                ),
+            ),
+        ]
     )
+
     param_distributions = {
-        "n_estimators": [400, 500, 600],
-        "learning_rate": [0.01, 0.03, 0.05],
-        "max_depth": [3, 4, 5, 6],
-        "subsample": [0.7, 0.8, 0.9, 1.0],
-        "colsample_bytree": [0.7, 0.8, 0.9, 1.0],
+        "xgb__n_estimators": [300, 500, 800],
+        "xgb__learning_rate": [0.01, 0.03, 0.05, 0.1],
+        "xgb__max_depth": [3, 4, 5, 6],
+        "xgb__subsample": [0.7, 0.8, 0.9, 1.0],
+        "xgb__colsample_bytree": [0.7, 0.8, 0.9, 1.0],
+        "xgb__gamma": [0, 0.1, 0.3, 0.5],
+        "xgb__min_child_weight": [1, 3, 5],
+        "xgb__reg_alpha": [0, 0.1, 1],
+        "xgb__reg_lambda": [1, 1.5, 2],
     }
+
     tscv = TimeSeriesSplit(n_splits=5)
     search = RandomizedSearchCV(
-        model,
+        pipeline,
         param_distributions,
         n_iter=20,
         scoring="accuracy",
@@ -81,17 +101,17 @@ def train_model(x_train, y_train):
         n_jobs=-1,
         random_state=42,
     )
+
     search.fit(x_train, y_train)
     return search.best_estimator_
 
 
-def predict_next_day(model, scaler, x_last):
-    x_scaled = scaler.transform(x_last)
-    return model.predict(x_scaled)[0]
+def predict_next_day(model, x_last):
+    return int(model.predict(x_last)[0])
 
 
-def accuracyScore(model, x_test_scaled, y_test):
-    y_pred = model.predict(x_test_scaled)
+def accuracyScore(model, x_test, y_test):
+    y_pred = model.predict(x_test)
     return accuracy_score(y_test, y_pred) * 100
 
 
@@ -103,13 +123,13 @@ def run_model(df):
     df = create_labels(df)
 
     x_train, x_test, y_train, y_test = split_data(df)
-    x_train_scaled, x_test_scaled, scaler = scale_data(x_train, x_test)
-    model = train_model(x_train_scaled, y_train)
+    model = train_model(x_train, y_train)
 
-    model.save_model("model.ubj")
+    with pathlib.Path("./model.pkl").open("wb") as f:
+        pickle.dump(model, f)
 
-    with pathlib.Path("./scaler.pkl").open("wb") as f:
-        pickle.dump([scaler, x_test_scaled, y_test], f)
+    with pathlib.Path("./model_data.pkl").open("wb") as f:
+        pickle.dump([x_test, y_test], f)
 
 
 if __name__ == "__main__":
