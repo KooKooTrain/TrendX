@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrendX - Predictive Market Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script type="module" src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0D0D0D;
+            color: #E0E0E0;
+            overflow: hidden;
+        }
+        
+        .glass-card {
+            background-color: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(16px) saturate(180%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .bg-futuristic {
+            background: radial-gradient(circle at 50% 50%, #1a1a1a 0%, #000000 100%);
+        }
+
+        .trendx-accent {
+            color: #4CB0FF;
+        }
+
+        .chart-container {
+            height: 300px;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+    </style>
+</head>
+<body class="bg-futuristic min-h-screen p-4 flex flex-col">
+
+    <nav class="glass-card flex justify-between items-center px-6 py-3 mb-6 sticky top-4 z-10 w-full max-w-7xl mx-auto">
+        <div class="text-2xl font-black trendx-accent">Trend<span class="text-white">X</span></div>
+        <div class="flex space-x-6 text-sm font-medium">
+            <a href="#" class="text-white hover:trendx-accent transition duration-200">Dashboard</a>
+            <a href="#" class="text-gray-400 hover:trendx-accent transition duration-200">Model</a>
+            <a href="#" class="text-gray-400 hover:trendx-accent transition duration-200">Reports</a>
+            <a href="#" class="text-gray-400 hover:trendx-accent transition duration-200">Settings</a>
+        </div>
+        <div class="flex items-center space-x-3">
+            <i data-lucide="bell" class="w-5 h-5 text-gray-400"></i>
+            <div class="w-8 h-8 rounded-full bg-gray-700 border-2 border-gray-500"></div>
+        </div>
+    </nav>
+    
+    <main class="flex-grow w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <div class="lg:col-span-2 flex flex-col space-y-6">
+
+            <div class="glass-card p-6 h-full flex flex-col">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h2 class="text-xl font-bold">30-Day Time Series & Features</h2>
+                        <p class="text-sm text-gray-400">Tesla Inc | SDG Aligned: Green Energy</p>
+                    </div>
+                    <span id="stock-price" class="text-3xl font-extrabold text-white">$Loading...</span>
+                </div>
+                <div class="flex-grow chart-container">
+                    <canvas id="timeSeriesChart"></canvas>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="lg:col-span-1 flex flex-col space-y-6">
+            
+            <div id="prediction-card" class="glass-card p-6 flex flex-col items-center justify-center h-[200px] transition-colors duration-500">
+                <h3 class="text-lg font-semibold mb-2">Next Day Trend Prediction (T+1)</h3>
+                <div id="prediction-result" class="text-6xl font-black mt-2 mb-4 text-white">...</div>
+                <div id="prediction-status" class="text-xs mt-2 px-3 py-1 rounded-full bg-gray-700">Awaiting Model Output</div>
+            </div>
+
+            <div class="glass-card p-6 flex-grow">
+                <h3 class="text-lg font-semibold mb-4">Real-Time Market Data</h3>
+                <div id="market-data-loading" class="text-center py-10">
+                    <div class="animate-spin inline-block w-6 h-6 border-2 border-t-2 border-t-white border-gray-600 rounded-full"></div>
+                    <p class="mt-3 text-sm text-gray-400">Fetching current market metrics...</p>
+                </div>
+                <div id="market-data-content" class="space-y-3 hidden">
+                </div>
+            </div>
+
+            <div class="glass-card p-6">
+                <h3 class="text-lg font-semibold mb-4">Classifier Performance (XGBoost)</h3>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Accuracy Score:</span>
+                        <span class="font-semibold text-white" id="accuracy-score">0.0</span>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </main>
+
+    <script>
+        function formatPrice(value) {
+            return parseFloat(value).toFixed(2);
+        }
+        
+        function renderDashboard(data) {
+            const stockPriceEl = document.getElementById('stock-price');
+            const predictionResultEl = document.getElementById('prediction-result');
+            const predictionConfidenceEl = document.getElementById('prediction-confidence');
+            const predictionStatusEl = document.getElementById('prediction-status');
+            const predictionCard = document.getElementById('prediction-card');
+            const marketDataContent = document.getElementById('market-data-content');
+            const marketDataLoading = document.getElementById('market-data-loading');
+            const accuracyScore = document.getElementById('accuracy-score');
+            
+            marketDataLoading.classList.add('hidden');
+            marketDataContent.classList.remove('hidden');
+
+            const changeColor = data.dailyChangePercent >= 0 ? 'text-green-400' : 'text-red-400';
+            const trendIcon = data.dailyChangePercent >= 0 ? 'arrow-up' : 'arrow-down';
+            const dailyChangeFormatted = `${data.dailyChangePercent >= 0 ? '+' : ''}${data.dailyChangePercent.toFixed(2)}%`;
+
+            stockPriceEl.innerHTML = `
+                $${formatPrice(data.currentPrice)} 
+                <i data-lucide="${trendIcon}" class="w-5 h-5 inline-block ${changeColor}"></i>
+            `;
+            stockPriceEl.classList.remove('text-green-400', 'text-red-400');
+            stockPriceEl.classList.add(changeColor);
+            lucide.createIcons();
+
+            marketDataContent.innerHTML = `
+                <div class="flex justify-between border-b border-gray-700 pb-2">
+                    <span class="text-gray-400">Stock Name:</span>
+                    <span class="font-semibold text-white">${data.company}</span>
+                </div>
+                <div class="flex justify-between border-b border-gray-700 pb-2">
+                    <span class="text-gray-400">Daily Change:</span>
+                    <span class="font-semibold ${changeColor}">${dailyChangeFormatted}</span>
+                </div>
+            `;
+            
+            let prediction = 'FLAT';
+            let statusBg = 'bg-gray-700';
+
+            if (data.dailyChangePercent > 0.5 || data.sentiment.toUpperCase() === 'UP') {
+                prediction = 'UP';
+                statusBg = 'bg-green-600/50 text-green-300';
+            } else if (data.dailyChangePercent < -0.5 || data.sentiment.toUpperCase() === 'DOWN') {
+                prediction = 'DOWN';
+                statusBg = 'bg-red-600/50 text-red-300';
+            }
+            
+            predictionResultEl.textContent = prediction;
+            
+            predictionCard.classList.remove('bg-gray-800', 'bg-red-800/50', 'bg-green-800/50');
+            if (prediction === 'UP') {
+                predictionCard.classList.add('bg-green-800/50');
+            } else if (prediction === 'DOWN') {
+                predictionCard.classList.add('bg-red-800/50');
+            } else {
+                predictionCard.classList.add('bg-gray-800');
+            }
+            
+            const predictionLabel = `Prediction: ${prediction}`;
+            predictionStatusEl.textContent = predictionLabel;
+            predictionStatusEl.className = `text-xs mt-2 px-3 py-1 rounded-full ${statusBg}`;
+
+            accuracyScore.textContent = `${parseFloat(data.accuracyScore).toFixed(2)}%`;
+        }
+
+        let timeSeriesChart;
+
+        function initializeChart(prices) {
+            const ctx = document.getElementById('timeSeriesChart').getContext('2d');
+                      
+            const labels = Array.from({ length: 30 }, (_, i) => `Day ${i + 1}`);
+
+            timeSeriesChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Closing Price',
+                            data: prices,
+                            borderColor: '#4CB0FF',
+                            backgroundColor: 'rgba(76, 176, 255, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            pointRadius: 3,
+                            fill: true,
+                        },
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            labels: {
+                                color: '#A0A0A0',
+                                boxWidth: 10,
+                                padding: 20,
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: 'rgba(20, 20, 20, 0.8)',
+                            titleColor: '#FFFFFF',
+                            bodyColor: '#E0E0E0',
+                            borderColor: '#4CB0FF',
+                            borderWidth: 1,
+                            padding: 10,
+                            cornerRadius: 6,
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)',
+                                borderColor: '#333333',
+                            },
+                            ticks: {
+                                color: '#A0A0A0',
+                            }
+                        },
+                        y: {
+                            position: 'right',
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)',
+                                borderColor: '#333333',
+                            },
+                            ticks: {
+                                color: '#A0A0A0',
+                                callback: function(value) {
+                                    return '$' + value;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        async function fetchMarketDataAndPredict() {
+            const marketDataLoading = document.getElementById('market-data-loading');
+            marketDataLoading.classList.remove('hidden');
+
+            try {
+                const stockReq = await fetch("/api/stock/info")
+                const stockData = await stockReq.json()
+                
+                renderDashboard(stockData);
+
+                const pricesReq = await fetch("/api/stock/prices")
+                const pricesData = await pricesReq.json()
+                initializeChart(pricesData["prices"]);
+
+
+            } catch (error) {
+                console.error("Error fetching market data and prediction:", error);
+            }
+        }
+
+        window.onload = function() {
+            fetchMarketDataAndPredict();
+            
+            lucide.createIcons();
+        };
+
+        window.addEventListener('resize', () => {
+            if (timeSeriesChart) {
+                timeSeriesChart.resize();
+            }
+        });
+
+    </script>
+</body>
+</html>
