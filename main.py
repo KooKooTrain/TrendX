@@ -36,6 +36,8 @@ class StockInfo(HTTPEndpoint):
                 "dailyChangePercent": (prices.pct_change() * 100).iloc[-1].item(),
                 "sentiment": "UP" if label == 1 else "DOWN",
                 "accuracyScore": accuracyScore(model, x_test, y_test),
+                "featureSet": ["Momentum", "Volume", "MACD"],
+                "trainingWindow": "1 Year",
             }
         )
 

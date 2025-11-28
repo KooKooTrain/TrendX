@@ -121,7 +121,7 @@ def predict_next_day(model, x_last):
 
 def accuracyScore(model, x_test, y_test):
     y_pred = model.predict(x_test)
-    return accuracy_score(y_test, y_pred) * 100
+    return accuracy_score(y_test, y_pred)
 
 
 df = yf.download("TSLA", period="5y", auto_adjust=True)

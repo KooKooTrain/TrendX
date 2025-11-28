@@ -111,6 +111,15 @@
                         <span class="text-gray-400">Accuracy Score:</span>
                         <span class="font-semibold text-white" id="accuracy-score">0.0</span>
                     </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Feature Set Used:</span>
+                        <span class="font-semibold text-white" id="feature-set"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Training Window:</span>
+                        <span class="font-semibold text-white" id="training-window"></span>
+                    </div>
+
                 </div>
             </div>
             
@@ -131,6 +140,8 @@
             const marketDataContent = document.getElementById('market-data-content');
             const marketDataLoading = document.getElementById('market-data-loading');
             const accuracyScore = document.getElementById('accuracy-score');
+            const featureSet = document.getElementById('feature-set');
+            const trainingWindow = document.getElementById('training-window');
             
             marketDataLoading.classList.add('hidden');
             marketDataContent.classList.remove('hidden');
@@ -184,7 +195,9 @@
             predictionStatusEl.textContent = predictionLabel;
             predictionStatusEl.className = `text-xs mt-2 px-3 py-1 rounded-full ${statusBg}`;
 
-            accuracyScore.textContent = `${parseFloat(data.accuracyScore).toFixed(2)}%`;
+            accuracyScore.textContent = `${parseFloat(data.accuracyScore).toFixed(4)}`;
+            featureSet.textContent = data.featureSet.join(", ")
+            trainingWindow.textContent = data.trainingWindow
         }
 
         let timeSeriesChart;
