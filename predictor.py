@@ -17,6 +17,7 @@ def create_features(df, target_col="Close"):
     df = df.copy()
     windows = [3, 5, 10, 20, 50]
     for w in windows:
+        # Standard rolling features
         df[f"roll_mean_{w}"] = df[target_col].rolling(w).mean()
         df[f"roll_std_{w}"] = df[target_col].rolling(w).std()
         df[f"roll_min_{w}"] = df[target_col].rolling(w).min()
@@ -26,12 +27,15 @@ def create_features(df, target_col="Close"):
         df[f"vol_mean_{w}"] = df["Volume"].rolling(w).mean()
         df[f"vol_std_{w}"] = df["Volume"].rolling(w).std()
 
+    # Price-based features
     df["OC_diff"] = df["Close"] - df["Open"]
     df["HL_range"] = df["High"] - df["Low"]
 
+    # Lag features
     for lag in range(1, 6):
         df[f"{target_col}_lag_{lag}"] = df[target_col].shift(lag)
 
+    # MACD
     df["EMA12"] = df[target_col].ewm(span=12, adjust=False).mean()
     df["EMA26"] = df[target_col].ewm(span=26, adjust=False).mean()
     df["MACD"] = df["EMA12"] - df["EMA26"]
@@ -42,7 +46,9 @@ def create_features(df, target_col="Close"):
 
 def create_labels(df, target_col="Close", threshold=0.001):
     df = df.copy()
+    # Create classification labels for up or down
     df["target"] = (
+        # Use a threshold to reduce noise
         (df[target_col].shift(-1) - df[target_col]) / df[target_col] > threshold
     ).astype(int)
     return df.dropna()
@@ -62,6 +68,7 @@ def split_data(df):
 
 
 def train_model(x_train, y_train):
+    # First scale data and then make a base model on the scaled data
     pipeline = Pipeline(
         [
             ("scaler", StandardScaler()),
@@ -78,6 +85,7 @@ def train_model(x_train, y_train):
         ]
     )
 
+    # Hypertune the model's parameters for maximum accuracy
     param_distributions = {
         "xgb__n_estimators": [300, 500, 800],
         "xgb__learning_rate": [0.01, 0.03, 0.05, 0.1],
@@ -94,7 +102,7 @@ def train_model(x_train, y_train):
     search = RandomizedSearchCV(
         pipeline,
         param_distributions,
-        n_iter=20,
+        n_iter=25,
         scoring="accuracy",
         cv=tscv,
         verbose=2,
@@ -103,6 +111,7 @@ def train_model(x_train, y_train):
     )
 
     search.fit(x_train, y_train)
+    print("CV:", search.best_score_)
     return search.best_estimator_
 
 
@@ -134,3 +143,4 @@ def run_model(df):
 
 if __name__ == "__main__":
     run_model(df)
+    print("Trained the model!")
