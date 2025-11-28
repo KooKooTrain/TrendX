@@ -1,0 +1,5 @@
+scikit_learn==1.7.2
+starlette==0.50.0
+uvicorn==0.38.0
+xgboost==3.1.2
+yfinance==0.2.66
