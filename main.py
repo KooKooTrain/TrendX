@@ -5,12 +5,28 @@ from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from predictor import accuracyScore, get_df_and_model, predict_next_day
+from predictor import (
+    InvalidTickerError,
+    accuracyScore,
+    get_df_and_model,
+    predict_next_day,
+)
 
 
 async def stockInfo(request: Request):
     ticker = request.path_params["ticker"]
-    (df, ticker), model, (x_test, y_test) = get_df_and_model(ticker)
+
+    try:
+        (df, ticker), model, (x_test, y_test) = get_df_and_model(ticker)
+    except InvalidTickerError:
+        return JSONResponse(
+            {
+                "message": "Invalid ticker provided, please check the spelling and try again later."
+            },
+            status_code=400,
+        )
+    except Exception as e:
+        return JSONResponse({"message": e})
 
     label = predict_next_day(model, x_test.iloc[[-1]])
     prices = df["Close"]
@@ -36,7 +52,18 @@ async def stockInfo(request: Request):
 
 async def stockPrices(request: Request):
     ticker = request.path_params["ticker"]
-    (df, _), _, _ = get_df_and_model(ticker)
+
+    try:
+        (df, _), _, _ = get_df_and_model(ticker)
+    except InvalidTickerError:
+        return JSONResponse(
+            {
+                "message": "Invalid ticker provided, please check the spelling and try again later."
+            },
+            status_code=400,
+        )
+    except Exception as e:
+        return JSONResponse({"message": e})
 
     last_30_prices = df["Close"].squeeze().tail(30).tolist()
     return JSONResponse({"prices": last_30_prices})
@@ -50,10 +77,19 @@ stocks_routes = Mount(
     ],
 )
 
+
+async def delModel(request: Request):
+    ticker = request.path_params["ticker"]
+    get_df_and_model(ticker, True)
+
+    return JSONResponse({"status": "ok"})
+
+
 if __name__ == "__main__":
     app = Starlette(
         debug=True,
         routes=[
+            Route("/api/model/{ticker}", delModel, methods=["DELETE"]),
             stocks_routes,
             Mount("/", app=StaticFiles(directory="static", html=True), name="static"),
         ],

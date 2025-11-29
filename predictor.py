@@ -136,9 +136,12 @@ def accuracyScore(
     return accuracy_score(y_test, y_pred)
 
 
-def get_df(_ticker: str) -> tuple[pd.DataFrame, yf.Ticker]:
+def get_df(_ticker: str) -> tuple[pd.DataFrame, yf.Ticker] | None:
     ticker = yf.Ticker(_ticker)
     df = ticker.history(period="5y")
+
+    if df.empty:
+        return None
 
     return df, ticker
 
@@ -165,15 +168,25 @@ def run_model(
     return model_data
 
 
+class InvalidTickerError(Exception):
+    """Raised when a ticker is invalid or no data is available."""
+
+    pass
+
+
 def get_df_and_model(
-    _ticker: str,
+    _ticker: str, force: bool = False
 ) -> tuple[
     tuple[pd.DataFrame, yf.Ticker], XGBClassifier, tuple[pd.DataFrame, pd.Series]
 ]:
-    df, ticker = get_df(_ticker)
+    test = get_df(_ticker)
+    if test is None:
+        raise InvalidTickerError(f"Invalid ticker: {_ticker}.")
+    df, ticker = test
+
     path = Path(models_dir / f"model_{ticker.ticker}_{today}.pkl")
 
-    if not path.exists():
+    if not path.exists() or force:
         model, x_test, y_test = run_model(df, ticker)
     else:
         with path.open("rb") as f:
