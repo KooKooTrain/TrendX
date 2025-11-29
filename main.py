@@ -15,13 +15,15 @@ async def stockInfo(request: Request):
     label = predict_next_day(model, x_test.iloc[[-1]])
     prices = df["Close"]
 
-    company = ticker.info["longName"]
+    company = ticker.info.get("longName") or ticker.info.get("displayName")
     symbol = ticker.ticker
+    currency = ticker.info.get("financialCurrency") or "USD"
 
     return JSONResponse(
         {
             "company": company,
             "symbol": symbol,
+            "currency": currency,
             "currentPrice": prices.iloc[-1].item(),
             "dailyChangePercent": (prices.pct_change() * 100).iloc[-1].item(),
             "sentiment": "UP" if label == 1 else "DOWN",
