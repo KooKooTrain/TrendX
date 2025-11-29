@@ -34,12 +34,16 @@ async def stockInfo(request: Request):
     company = ticker.info.get("longName") or ticker.info.get("displayName")
     symbol = ticker.ticker
     currency = ticker.info.get("financialCurrency") or "USD"
+    exchange = ticker.info.get("exchange") or ""
+    summary = ticker.info.get("longBusinessSummary") or ""
 
     return JSONResponse(
         {
             "company": company,
+            "summary": summary,
             "symbol": symbol,
             "currency": currency,
+            "exchange": exchange,
             "currentPrice": prices.iloc[-1].item(),
             "dailyChangePercent": (prices.pct_change() * 100).iloc[-1].item(),
             "sentiment": "UP" if label == 1 else "DOWN",

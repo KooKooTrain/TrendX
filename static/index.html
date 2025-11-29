@@ -318,6 +318,9 @@
 					return await res.json();
 				}
 
+				// Source: https://codereview.stackexchange.com/a/210786
+			  const truncate = (str = "", count = 1, end = "...") => (str.split(" ").splice(0, count).join(" ")) + end;
+
 				// Chart management
 				let timeSeriesChart = null;
 				function renderChart(data, prices) {
@@ -393,7 +396,9 @@
 					if (marketDataContent) marketDataContent.classList.remove("hidden");
 
 					const company = data?.company ?? DEFAULT_SYMBOL;
+					const summary = truncate(data?.summary ?? "", 25);
 					const currency = data?.currency ?? "USD"
+					const exchange = data?.exchange ?? ""
 					const currentPrice = Number(data?.currentPrice);
 					const dailyChangePercent = Number(data?.dailyChangePercent) || 0;
 					const sentiment = (data?.sentiment || "").toString().toUpperCase();
@@ -416,6 +421,8 @@
 					marketDataContent.innerHTML = `
           <div class="flex justify-between border-b border-gray-800 pb-2"><span class="text-sm text-[color:var(--muted)]">Stock Name</span><strong>${escapeHtml(company)}</strong></div>
           <div class="flex justify-between border-b border-gray-800 pt-2 pb-2"><span class="text-sm text-[color:var(--muted)]">Daily Change</span><strong class="${changeColor}">${dailyChangePercent >= 0 ? "+" : ""}${dailyChangePercent.toFixed(2)}%</strong></div>
+          <div class="flex justify-between border-b border-gray-800 pt-2 pb-2"><span class="text-sm text-[color:var(--muted)]">Exchange</span><strong>${exchange}</strong></div>
+          <div class="border-b border-gray-800 pt-2 pb-2"><span class="text-sm text-[color:var(--muted)] block mb-1">Summary</span><span class="text-sm text-gray-300 leading-relaxed">${summary}</span></div>
         `;
 
 					chartCompanyName.textContent = company;
