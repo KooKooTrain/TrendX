@@ -1,313 +1,548 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TrendX - Predictive Market Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script type="module" src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
-        
-        body {
-            font-family: 'Inter', sans-serif;
-            background: #0D0D0D;
-            color: #E0E0E0;
-            overflow: hidden;
-        }
-        
-        .glass-card {
-            background-color: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(16px) saturate(180%);
-            -webkit-backdrop-filter: blur(16px) saturate(180%);
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-        }
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1">
+		<meta
+			name="description"
+			content="TrendX — Predictive Market Dashboard (production-ready refactor)"
+		>
+		<title>TrendX — Predictive Market Dashboard</title>
 
-        .bg-futuristic {
-            background: radial-gradient(circle at 50% 50%, #1a1a1a 0%, #000000 100%);
-        }
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link
+			href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap"
+			rel="stylesheet"
+		>
 
-        .trendx-accent {
-            color: #4CB0FF;
-        }
+		<script src="https://cdn.tailwindcss.com" defer></script>
 
-        .chart-container {
-            height: 300px;
-        }
+		<script
+			src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
+			defer
+			integrity=""
+			crossorigin="anonymous"
+		></script>
 
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 10px;
-        }
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-    </style>
-</head>
-<body class="bg-futuristic min-h-screen p-4 flex flex-col">
+		<script type="module" src="https://unpkg.com/lucide@latest" defer></script>
 
-    <nav class="glass-card flex justify-between items-center px-6 py-3 mb-6 sticky top-4 z-10 w-full max-w-7xl mx-auto">
-        <div class="text-2xl font-black trendx-accent">Trend<span class="text-white">X</span></div>
-        <div class="flex space-x-6 text-sm font-medium">
-            <a href="#" class="text-white hover:trendx-accent transition duration-200">Dashboard</a>
-            <a href="#" class="text-gray-400 hover:trendx-accent transition duration-200">Model</a>
-            <a href="#" class="text-gray-400 hover:trendx-accent transition duration-200">Reports</a>
-            <a href="#" class="text-gray-400 hover:trendx-accent transition duration-200">Settings</a>
-        </div>
-        <div class="flex items-center space-x-3">
-            <i data-lucide="bell" class="w-5 h-5 text-gray-400"></i>
-            <div class="w-8 h-8 rounded-full bg-gray-700 border-2 border-gray-500"></div>
-        </div>
-    </nav>
-    
-    <main class="flex-grow w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+		<style>
+			:root {
+				--bg: #0b0b0b;
+				--card-bg: rgba(255, 255, 255, 0.04);
+				--muted: #9aa4b2;
+				--accent: #4cb0ff;
+				--glass-border: rgba(255, 255, 255, 0.1);
+				--glass-blur: 14px;
+			}
 
-        <div class="lg:col-span-2 flex flex-col space-y-6">
+			html,
+			body {
+				height: 100%;
+			}
+			body {
+				margin: 0;
+				font-family:
+					"Inter", system-ui, -apple-system, "Segoe UI", Roboto,
+					"Helvetica Neue", Arial;
+				background: radial-gradient(
+					circle farthest-corner at 50% 50%,
+					#1a1a1a 0%,
+					#000000 120%
+				);
+				color: #e6eef8;
+				-webkit-font-smoothing: antialiased;
+				-moz-osx-font-smoothing: grayscale;
+			}
 
-            <div class="glass-card p-6 h-full flex flex-col">
-                <div class="flex justify-between items-start mb-4">
-                    <div>
-                        <h2 class="text-xl font-bold">30-Day Time Series & Features</h2>
-                        <p class="text-sm text-gray-400">Tesla Inc | SDG Aligned: Green Energy</p>
-                    </div>
-                    <span id="stock-price" class="text-3xl font-extrabold text-white">$Loading...</span>
-                </div>
-                <div class="flex-grow chart-container">
-                    <canvas id="timeSeriesChart"></canvas>
-                </div>
-            </div>
+			.glass-card {
+				background-color: var(--card-bg);
+				backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+				-webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+				border-radius: 16px;
+				border: 1px solid var(--glass-border);
+				box-shadow: 0 6px 30px rgba(0, 0, 0, 0.5);
+			}
 
-        </div>
+			.chart-container {
+				width: 100%;
+				flex-grow: 1;
+				min-height: 300px;
+			}
 
-        <div class="lg:col-span-1 flex flex-col space-y-6">
-            
-            <div id="prediction-card" class="glass-card p-6 flex flex-col items-center justify-center h-[200px] transition-colors duration-500">
-                <h3 class="text-lg font-semibold mb-2">Next Day Trend Prediction (T+1)</h3>
-                <div id="prediction-result" class="text-6xl font-black mt-2 mb-4 text-white">...</div>
-                <div id="prediction-status" class="text-xs mt-2 px-3 py-1 rounded-full bg-gray-700">Awaiting Model Output</div>
-            </div>
+			/* Scrollbar style - non-critical */
+			::-webkit-scrollbar {
+				width: 10px;
+				height: 10px;
+			}
+			::-webkit-scrollbar-thumb {
+				background: rgba(255, 255, 255, 0.06);
+				border-radius: 999px;
+			}
 
-            <div class="glass-card p-6 flex-grow">
-                <h3 class="text-lg font-semibold mb-4">Real-Time Market Data</h3>
-                <div id="market-data-loading" class="text-center py-10">
-                    <div class="animate-spin inline-block w-6 h-6 border-2 border-t-2 border-t-white border-gray-600 rounded-full"></div>
-                    <p class="mt-3 text-sm text-gray-400">Fetching current market metrics...</p>
-                </div>
-                <div id="market-data-content" class="space-y-3 hidden">
-                </div>
-            </div>
+			/* Respect prefers-reduced-motion */
+			@media (prefers-reduced-motion: reduce) {
+				* {
+					animation-duration: 0.001ms !important;
+					transition-duration: 0.001ms !important;
+				}
+			}
 
-            <div class="glass-card p-6">
-                <h3 class="text-lg font-semibold mb-4">Classifier Performance (XGBoost)</h3>
-                <div class="space-y-2 text-sm">
-                    <div class="flex justify-between">
-                        <span class="text-gray-400">Accuracy Score:</span>
-                        <span class="font-semibold text-white" id="accuracy-score">0.0</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-400">Feature Set Used:</span>
-                        <span class="font-semibold text-white" id="feature-set"></span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-400">Training Window:</span>
-                        <span class="font-semibold text-white" id="training-window"></span>
-                    </div>
+			/* Small utility for visually-hidden text (accessibility) */
+			.sr-only {
+				position: absolute;
+				width: 1px;
+				height: 1px;
+				padding: 0;
+				margin: -1px;
+				overflow: hidden;
+				clip: rect(0, 0, 0, 0);
+				white-space: nowrap;
+				border: 0;
+			}
+		</style>
+	</head>
+	<body class="min-h-screen flex flex-col p-4 md:p-6">
+		<header class="w-full p-4 md:p-5 mx-auto sticky top-4 z-20">
+			<nav
+				class="glass-card flex items-center justify-between p-4 md:p-5"
+				aria-label="Primary navigation"
+			>
+				<div class="flex items-center gap-3">
+					<a
+						href="#"
+						class="text-xl font-extrabold leading-none"
+						aria-label="TrendX home"
+					>
+						<span class="text-[color:var(--accent)]">Trend</span><span
+							class="text-white"
+							>X</span
+						>
+					</a>
+					<span
+						class="hidden md:inline-block text-sm text-muted text-[color:var(--muted)] ml-2"
+						>Predictive Market Dashboard</span
+					>
+				</div>
 
-                </div>
-            </div>
-            
-        </div>
-    </main>
+				<ul
+					class="hidden lg:flex items-center gap-6 text-sm font-medium text-[color:var(--muted)]"
+					role="menubar"
+				>
+					<li role="none">
+						<a
+							role="menuitem"
+							href="#dashboard"
+							class="hover:text-[color:var(--accent)]"
+							>Dashboard</a
+						>
+					</li>
+					<li role="none">
+						<a
+							role="menuitem"
+							href="#model"
+							class="hover:text-[color:var(--accent)]"
+							>Model</a
+						>
+					</li>
+					<li role="none">
+						<a
+							role="menuitem"
+							href="#reports"
+							class="hover:text-[color:var(--accent)]"
+							>Reports</a
+						>
+					</li>
+					<li role="none">
+						<a
+							role="menuitem"
+							href="#settings"
+							class="hover:text-[color:var(--accent)]"
+							>Settings</a
+						>
+					</li>
+				</ul>
 
-    <script>
-        function formatPrice(value) {
-            return parseFloat(value).toFixed(2);
-        }
-        
-        function renderDashboard(data) {
-            const stockPriceEl = document.getElementById('stock-price');
-            const predictionResultEl = document.getElementById('prediction-result');
-            const predictionConfidenceEl = document.getElementById('prediction-confidence');
-            const predictionStatusEl = document.getElementById('prediction-status');
-            const predictionCard = document.getElementById('prediction-card');
-            const marketDataContent = document.getElementById('market-data-content');
-            const marketDataLoading = document.getElementById('market-data-loading');
-            const accuracyScore = document.getElementById('accuracy-score');
-            const featureSet = document.getElementById('feature-set');
-            const trainingWindow = document.getElementById('training-window');
-            
-            marketDataLoading.classList.add('hidden');
-            marketDataContent.classList.remove('hidden');
+				<div class="flex items-center gap-3">
+					<button
+						id="btn-notifications"
+						aria-label="Notifications"
+						class="p-2 rounded-md hover:bg-white/3"
+					>
+						<i
+							data-lucide="bell"
+							class="w-5 h-5 text-[color:var(--muted)]"
+							aria-hidden="true"
+						></i>
+					</button>
+					<div
+						class="w-8 h-8 rounded-full bg-gray-700 border-2 border-gray-600"
+						aria-hidden="true"
+					></div>
+				</div>
+			</nav>
+		</header>
 
-            const changeColor = data.dailyChangePercent >= 0 ? 'text-green-400' : 'text-red-400';
-            const trendIcon = data.dailyChangePercent >= 0 ? 'arrow-up' : 'arrow-down';
-            const dailyChangeFormatted = `${data.dailyChangePercent >= 0 ? '+' : ''}${data.dailyChangePercent.toFixed(2)}%`;
+		<main
+			id="dashboard"
+			class="flex-grow w-full px-4 md:px-6 mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6"
+		>
+			<!-- Large panel: chart + price -->
+			<section
+				class="lg:col-span-2 glass-card p-5 flex flex-col"
+				aria-labelledby="timeseries-heading"
+			>
+				<div class="flex items-start justify-between gap-4 mb-4">
+					<div>
+						<h2 id="timeseries-heading" class="text-lg font-semibold">
+							30-Day Time Series & Features
+						</h2>
+						<p
+							id="chart-company-name"
+							class="text-sm text-[color:var(--muted)]"
+						>
+							&nbsp;
+						</p>
+					</div>
+					<div class="text-right">
+						<div
+							id="stock-price"
+							class="text-3xl font-extrabold flex items-center gap-1"
+							aria-live="polite"
+						>
+							—
+						</div>
+					</div>
+				</div>
 
-            stockPriceEl.innerHTML = `
-                $${formatPrice(data.currentPrice)} 
-                <i data-lucide="${trendIcon}" class="w-5 h-5 inline-block ${changeColor}"></i>
-            `;
-            stockPriceEl.classList.remove('text-green-400', 'text-red-400');
-            stockPriceEl.classList.add(changeColor);
-            lucide.createIcons();
+				<div
+					class="chart-container flex-grow w-full"
+					role="region"
+					aria-label="Price time series"
+				>
+					<canvas id="timeSeriesChart" aria-hidden="false"></canvas>
+				</div>
+			</section>
 
-            marketDataContent.innerHTML = `
-                <div class="flex justify-between border-b border-gray-700 pb-2">
-                    <span class="text-gray-400">Stock Name:</span>
-                    <span class="font-semibold text-white">${data.company}</span>
-                </div>
-                <div class="flex justify-between border-b border-gray-700 pb-2">
-                    <span class="text-gray-400">Daily Change:</span>
-                    <span class="font-semibold ${changeColor}">${dailyChangeFormatted}</span>
-                </div>
-            `;
-            
-            let prediction = 'FLAT';
-            let statusBg = 'bg-gray-700';
+			<!-- Right column -->
+			<aside class="flex flex-col gap-6 flex-grow">
+				<div
+					id="prediction-card"
+					class="glass-card p-5 flex flex-col items-center justify-center min-h-[180px] flex-shrink-0"
+					aria-labelledby="prediction-heading"
+				>
+					<h3 id="prediction-heading" class="text-base font-medium">
+						Next Day Trend Prediction (T+1)
+					</h3>
+					<div
+						id="prediction-result"
+						class="text-5xl font-extrabold mt-3"
+						aria-live="polite"
+						aria-atomic="true"
+					>
+						—
+					</div>
+					<div
+						id="prediction-status"
+						class="mt-3 text-sm px-3 py-1 rounded-full bg-gray-700 text-[color:var(--muted)]"
+					>
+						Awaiting model output
+					</div>
+				</div>
 
-            if (data.dailyChangePercent > 0.5 || data.sentiment.toUpperCase() === 'UP') {
-                prediction = 'UP';
-                statusBg = 'bg-green-600/50 text-green-300';
-            } else if (data.dailyChangePercent < -0.5 || data.sentiment.toUpperCase() === 'DOWN') {
-                prediction = 'DOWN';
-                statusBg = 'bg-red-600/50 text-red-300';
-            }
-            
-            predictionResultEl.textContent = prediction;
-            
-            predictionCard.classList.remove('bg-gray-800', 'bg-red-800/50', 'bg-green-800/50');
-            if (prediction === 'UP') {
-                predictionCard.classList.add('bg-green-800/50');
-            } else if (prediction === 'DOWN') {
-                predictionCard.classList.add('bg-red-800/50');
-            } else {
-                predictionCard.classList.add('bg-gray-800');
-            }
-            
-            const predictionLabel = `Prediction: ${prediction}`;
-            predictionStatusEl.textContent = predictionLabel;
-            predictionStatusEl.className = `text-xs mt-2 px-3 py-1 rounded-full ${statusBg}`;
+				<section class="glass-card p-5 min-h-[140px] flex-grow">
+					<h4 class="text-sm font-medium mb-3">Real-Time Market Data</h4>
+					<div id="market-data-loading" class="text-center py-6">
+						<span class="sr-only" aria-live="polite"
+							>Fetching current market metrics</span
+						>
+						<div
+							class="inline-block w-6 h-6 animate-spin border-2 border-t-2 border-t-white border-gray-600 rounded-full"
+							role="status"
+							aria-hidden="true"
+						></div>
+						<p class="mt-3 text-sm text-[color:var(--muted)]">
+							Fetching current market metrics...
+						</p>
+					</div>
+					<div
+						id="market-data-content"
+						class="hidden space-y-3"
+						role="region"
+						aria-live="polite"
+					></div>
+				</section>
 
-            accuracyScore.textContent = `${parseFloat(data.accuracyScore).toFixed(4)}`;
-            featureSet.textContent = data.featureSet.join(", ")
-            trainingWindow.textContent = data.trainingWindow
-        }
+				<section class="glass-card p-5 flex-shrink-0">
+					<h4 class="text-sm font-medium mb-3">
+						Classifier Performance (XGBoost)
+					</h4>
+					<dl class="text-sm">
+						<div class="flex justify-between">
+							<dt class="text-[color:var(--muted)]">Accuracy</dt>
+							<dd id="accuracy-score" class="font-semibold">—</dd>
+						</div>
+						<div class="flex justify-between mt-2">
+							<dt class="text-[color:var(--muted)]">Feature Set</dt>
+							<dd id="feature-set" class="font-semibold">—</dd>
+						</div>
+						<div class="flex justify-between mt-2">
+							<dt class="text-[color:var(--muted)]">Training Window</dt>
+							<dd id="training-window" class="font-semibold">—</dd>
+						</div>
+					</dl>
+				</section>
+			</aside>
+		</main>
 
-        let timeSeriesChart;
+		<script type="module">
+			const App = (() => {
+				const DEFAULT_API_BASE = "/api/stocks";
+				const DEFAULT_SYMBOL = "TSLA";
+				const MAX_RETRIES = 2;
 
-        function initializeChart(prices) {
-            const ctx = document.getElementById('timeSeriesChart').getContext('2d');
-                      
-            const labels = Array.from({ length: 30 }, (_, i) => `Day ${i + 1}`);
+				// Utilities
+				const qs = (sel) => document.querySelector(sel);
+				const qsa = (sel) => [...document.querySelectorAll(sel)];
 
-            timeSeriesChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: 'Closing Price',
-                            data: prices,
-                            borderColor: '#4CB0FF',
-                            backgroundColor: 'rgba(76, 176, 255, 0.1)',
-                            borderWidth: 2,
-                            tension: 0.4,
-                            pointRadius: 3,
-                            fill: true,
-                        },
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: true,
-                            labels: {
-                                color: '#A0A0A0',
-                                boxWidth: 10,
-                                padding: 20,
-                            }
-                        },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false,
-                            backgroundColor: 'rgba(20, 20, 20, 0.8)',
-                            titleColor: '#FFFFFF',
-                            bodyColor: '#E0E0E0',
-                            borderColor: '#4CB0FF',
-                            borderWidth: 1,
-                            padding: 10,
-                            cornerRadius: 6,
-                        }
-                    },
-                    scales: {
-                        x: {
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.05)',
-                                borderColor: '#333333',
-                            },
-                            ticks: {
-                                color: '#A0A0A0',
-                            }
-                        },
-                        y: {
-                            position: 'right',
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.05)',
-                                borderColor: '#333333',
-                            },
-                            ticks: {
-                                color: '#A0A0A0',
-                                callback: function(value) {
-                                    return '$' + value;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-        
-        async function fetchMarketDataAndPredict() {
-            const marketDataLoading = document.getElementById('market-data-loading');
-            marketDataLoading.classList.remove('hidden');
+				function formatPrice(value) {
+					const n = Number(value);
+					if (!isFinite(n)) return "—";
+					return "$" + n.toFixed(2);
+				}
 
-            try {
-                const stockReq = await fetch("/api/stock/info")
-                const stockData = await stockReq.json()
-                
-                renderDashboard(stockData);
+				function sleep(ms) {
+					return new Promise((r) => setTimeout(r, ms));
+				}
 
-                const pricesReq = await fetch("/api/stock/prices")
-                const pricesData = await pricesReq.json()
-                initializeChart(pricesData["prices"]);
+				// Fetch with retry/backoff
+				async function fetchJson(url, options = {}, retries = MAX_RETRIES) {
+					try {
+						const res = await fetch(url, options);
+						if (!res.ok) throw new Error(`Request failed (${res.status})`);
+						return await res.json();
+					} catch (err) {
+						if (retries > 0) {
+							await sleep(300 * (MAX_RETRIES - retries + 1));
+							return fetchJson(url, options, retries - 1);
+						}
+						throw err;
+					}
+				}
 
+				// Chart management
+				let timeSeriesChart = null;
+				function renderChart(prices) {
+					const ctx = qs("#timeSeriesChart");
+					const safePrices =
+						Array.isArray(prices) && prices.length ? prices.slice(-30) : [];
+					const labels = safePrices.map((_, i) => `Day ${i + 1}`);
 
-            } catch (error) {
-                console.error("Error fetching market data and prediction:", error);
-            }
-        }
+					if (timeSeriesChart) {
+						timeSeriesChart.data.labels = labels;
+						timeSeriesChart.data.datasets[0].data = safePrices;
+						timeSeriesChart.update();
+						return;
+					}
 
-        window.onload = function() {
-            fetchMarketDataAndPredict();
-            
-            lucide.createIcons();
-        };
+					timeSeriesChart = new Chart(ctx.getContext("2d"), {
+						type: "line",
+						data: {
+							labels,
+							datasets: [
+								{
+									label: "Closing Price",
+									data: safePrices,
+									borderColor:
+										getComputedStyle(document.documentElement).getPropertyValue(
+											"--accent",
+										) || "#4CB0FF",
+									backgroundColor: "rgba(76,176,255,0.08)",
+									borderWidth: 2,
+									pointRadius: 2,
+									tension: 0.35,
+									fill: true,
+								},
+							],
+						},
+						options: {
+							responsive: true,
+							maintainAspectRatio: false,
+							plugins: {
+								legend: { display: false },
+								tooltip: { mode: "index", intersect: false },
+							},
+							scales: {
+								x: {
+									grid: { color: "rgba(255,255,255,0.03)" },
+									ticks: { color: "#9aa4b2" },
+								},
+								y: {
+									position: "right",
+									grid: { color: "rgba(255,255,255,0.03)" },
+									ticks: { color: "#9aa4b2", callback: (v) => "$" + v },
+								},
+							},
+						},
+					});
+				}
 
-        window.addEventListener('resize', () => {
-            if (timeSeriesChart) {
-                timeSeriesChart.resize();
-            }
-        });
+				function safeSetText(el, text) {
+					if (!el) return;
+					el.textContent = text;
+				}
 
-    </script>
-</body>
+				// UI rendering
+				function renderDashboard(data) {
+					const stockPriceEl = qs("#stock-price");
+					const predictionResultEl = qs("#prediction-result");
+					const predictionStatusEl = qs("#prediction-status");
+					const predictionCard = qs("#prediction-card");
+					const marketDataContent = qs("#market-data-content");
+					const marketDataLoading = qs("#market-data-loading");
+					const chartCompanyName = qs("#chart-company-name");
+					const accuracyScore = qs("#accuracy-score");
+					const featureSet = qs("#feature-set");
+					const trainingWindow = qs("#training-window");
+
+					// Hide loading UI
+					if (marketDataLoading) marketDataLoading.classList.add("hidden");
+					if (marketDataContent) marketDataContent.classList.remove("hidden");
+
+					const company = data?.company ?? data?.name ?? DEFAULT_SYMBOL;
+					const currentPrice = Number(data?.currentPrice);
+					const dailyChangePercent = Number(data?.dailyChangePercent) || 0;
+					const sentiment = (data?.sentiment || "").toString().toUpperCase();
+
+					const changeColor =
+						dailyChangePercent >= 0 ? "text-green-400" : "text-red-400";
+					const trendIcon = dailyChangePercent >= 0 ? "arrow-up" : "arrow-down";
+					const dailyChangeFormatted = `${dailyChangePercent >= 0 ? "+" : ""}${dailyChangePercent.toFixed(2)}%`;
+
+					stockPriceEl.innerHTML = `
+            ${formatPrice(currentPrice)} 
+            <i data-lucide="${trendIcon}" class="w-5 h-5 inline-block ${changeColor}"></i>
+        `;
+
+					stockPriceEl.classList.remove("text-green-400", "text-red-400");
+					stockPriceEl.classList.add(changeColor);
+					lucide.createIcons();
+
+					// market content
+					marketDataContent.innerHTML = `
+          <div class="flex justify-between border-b border-gray-800 pb-2"><span class="text-sm text-[color:var(--muted)]">Stock Name</span><strong>${escapeHtml(company)}</strong></div>
+          <div class="flex justify-between border-b border-gray-800 pt-2 pb-2"><span class="text-sm text-[color:var(--muted)]">Daily Change</span><strong class="${changeColor}">${dailyChangePercent >= 0 ? "+" : ""}${dailyChangePercent.toFixed(2)}%</strong></div>
+        `;
+
+					chartCompanyName.textContent = company;
+
+					let prediction = "FLAT";
+					if (dailyChangePercent > 0.5 || sentiment === "UP") prediction = "UP";
+					else if (dailyChangePercent < -0.5 || sentiment === "DOWN")
+						prediction = "DOWN";
+
+					predictionResultEl.textContent = prediction;
+					predictionCard.classList.remove(
+						"bg-red-800/50",
+						"bg-green-800/50",
+						"bg-gray-800",
+					);
+					predictionStatusEl.classList.remove(
+						"bg-green-600/50",
+						"text-green-300",
+						"bg-red-600/50",
+						"text-red-300",
+						"bg-gray-700",
+						'text-[color:var(--muted)]"',
+					);
+
+					if (prediction === "UP") {
+						predictionCard.classList.add("bg-green-800/50");
+						predictionStatusEl.classList.add(
+							"bg-green-600/50",
+							"text-green-300",
+						);
+					} else if (prediction === "DOWN") {
+						predictionCard.classList.add("bg-red-800/50");
+						predictionStatusEl.classList.add("bg-red-600/50", " text-red-300");
+					} else {
+						predictionCard.classList.add("bg-gray-800");
+						predictionStatusEl.classList.add(
+							"bg-gray-700",
+							'text-[color:var(--muted)]"',
+						);
+					}
+
+					predictionStatusEl.textContent = `Prediction: ${prediction}`;
+
+					accuracyScore.textContent = (
+						Number(data?.accuracyScore) || 0
+					).toFixed(4);
+					featureSet.textContent = Array.isArray(data?.featureSet)
+						? data.featureSet.join(", ")
+						: (data?.featureSet ?? "—");
+					trainingWindow.textContent = data?.trainingWindow ?? "—";
+				}
+
+				function escapeHtml(str) {
+					return String(str).replace(
+						/[&<>"']/g,
+						(s) =>
+							({
+								"&": "&amp;",
+								"<": "&lt;",
+								">": "&gt;",
+								'"': "&quot;",
+								"'": "&#39;",
+							})[s],
+					);
+				}
+
+				async function load(
+					symbol = DEFAULT_SYMBOL,
+					apiBase = DEFAULT_API_BASE,
+				) {
+					const stockInfoUrl = `${apiBase}/${encodeURIComponent(symbol)}/info`;
+					const pricesUrl = `${apiBase}/${encodeURIComponent(symbol)}/prices`;
+
+					try {
+						const [stockData, pricesData] = await Promise.all([
+							fetchJson(stockInfoUrl),
+							fetchJson(pricesUrl),
+						]);
+
+						// Render UI
+						renderDashboard(stockData);
+						renderChart(pricesData?.prices ?? []);
+					} catch (err) {
+						console.error("Failed to load data", err);
+						const marketDataLoading = qs("#market-data-loading");
+						if (marketDataLoading)
+							marketDataLoading.innerHTML =
+								'<p class="text-sm text-red-400">Failed to fetch market data. Check your network or API endpoints.</p>';
+					}
+				}
+
+				return { load };
+			})();
+
+			window.addEventListener("DOMContentLoaded", () => {
+				App.load("TSLA", "/api/stocks");
+
+				// create lucide icons once icons library is loaded
+				// lucide may be undefined if module load failed; guard
+				if (window.lucide && typeof window.lucide.createIcons === "function") {
+					window.lucide.createIcons();
+				}
+
+				// Make chart responsive on resize
+				window.addEventListener("resize", () => {
+					try {
+						if (window.timeSeriesChart) window.timeSeriesChart.resize();
+					} catch (e) {}
+				});
+			});
+		</script>
+	</body>
 </html>
+

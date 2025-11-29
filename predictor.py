@@ -1,6 +1,9 @@
-import pathlib
-import pickle
+import pickle  # noqa: S403
+from datetime import date
+from pathlib import Path
+from typing import cast
 
+import pandas as pd
 import yfinance as yf
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import (
@@ -13,7 +16,7 @@ from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
 
 
-def create_features(df, target_col="Close"):
+def create_features(df: pd.DataFrame, target_col: str = "Close") -> pd.DataFrame:
     df = df.copy()
     windows = [3, 5, 10, 20, 50]
     for w in windows:
@@ -44,7 +47,9 @@ def create_features(df, target_col="Close"):
     return df.dropna()
 
 
-def create_labels(df, target_col="Close", threshold=0.001):
+def create_labels(
+    df: pd.DataFrame, target_col: str = "Close", threshold: float = 0.001
+) -> pd.DataFrame:
     df = df.copy()
     # Create classification labels for up or down
     df["target"] = (
@@ -54,20 +59,25 @@ def create_labels(df, target_col="Close", threshold=0.001):
     return df.dropna()
 
 
-def scale_data(x_train, x_test):
+def scale_data(x_train: list, x_test: list):
     scaler = StandardScaler()
     x_train_scaled = scaler.fit_transform(x_train)
     x_test_scaled = scaler.transform(x_test)
     return x_train_scaled, x_test_scaled, scaler
 
 
-def split_data(df):
-    X = df.drop(columns="target")
+def split_data(
+    df: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
+    x = df.drop(columns="target")
     y = df["target"]
-    return train_test_split(X, y, test_size=0.2, shuffle=False)
+    return cast(
+        "tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]",
+        train_test_split(x, y, test_size=0.2, shuffle=False),
+    )
 
 
-def train_model(x_train, y_train):
+def train_model(x_train: pd.DataFrame, y_train: pd.Series) -> XGBClassifier:
     # First scale data and then make a base model on the scaled data
     pipeline = Pipeline(
         [
@@ -115,32 +125,58 @@ def train_model(x_train, y_train):
     return search.best_estimator_
 
 
-def predict_next_day(model, x_last):
+def predict_next_day(model: XGBClassifier, x_last: pd.DataFrame) -> int:
     return int(model.predict(x_last)[0])
 
 
-def accuracyScore(model, x_test, y_test):
+def accuracyScore(
+    model: XGBClassifier, x_test: pd.DataFrame, y_test: pd.Series
+) -> float:
     y_pred = model.predict(x_test)
     return accuracy_score(y_test, y_pred)
 
 
-df = yf.download("TSLA", period="5y", auto_adjust=True)
+def get_df(_ticker: str) -> tuple[pd.DataFrame, yf.Ticker]:
+    ticker = yf.Ticker(_ticker)
+    df = ticker.history(period="5y")
+
+    return df, ticker
 
 
-def run_model(df):
+models_dir = Path("models")
+today = date.today().isoformat()
+
+
+def run_model(
+    df: pd.DataFrame, ticker: yf.Ticker
+) -> tuple[XGBClassifier, pd.DataFrame, pd.Series]:
     df = create_features(df)
     df = create_labels(df)
 
     x_train, x_test, y_train, y_test = split_data(df)
     model = train_model(x_train, y_train)
+    model_data = (model, x_test, y_test)
 
-    with pathlib.Path("./model.pkl").open("wb") as f:
-        pickle.dump(model, f)
+    models_dir.mkdir(exist_ok=True)
 
-    with pathlib.Path("./model_data.pkl").open("wb") as f:
-        pickle.dump([x_test, y_test], f)
+    with Path(models_dir / f"model_{ticker.ticker}_{today}.pkl").open("wb") as f:
+        pickle.dump(model_data, f)
+
+    return model_data
 
 
-if __name__ == "__main__":
-    run_model(df)
-    print("Trained the model!")
+def get_df_and_model(
+    _ticker: str,
+) -> tuple[
+    tuple[pd.DataFrame, yf.Ticker], XGBClassifier, tuple[pd.DataFrame, pd.Series]
+]:
+    df, ticker = get_df(_ticker)
+    path = Path(models_dir / f"model_{ticker.ticker}_{today}.pkl")
+
+    if not path.exists():
+        model, x_test, y_test = run_model(df, ticker)
+    else:
+        with path.open("rb") as f:
+            model, x_test, y_test = pickle.load(f)  # noqa: S301
+
+    return (df, ticker), model, (x_test, y_test)
